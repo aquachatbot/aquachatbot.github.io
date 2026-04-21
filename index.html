@@ -783,7 +783,7 @@ Always end responses with genuine helpfulness. Never make up specs or project na
       try {
         // 🛑 REPLACE WITH YOUR ACTUAL GEMINI API KEY 🛑
         const GEMINI_API_KEY = "AIzaSyCJi6HyuMiPHslt6W_EF_XnclKtjWPDTiA";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         // 2. Format the history array specifically for Gemini's API format
         const geminiHistory = history.map(msg => ({
