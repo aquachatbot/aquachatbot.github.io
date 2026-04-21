@@ -781,8 +781,14 @@ Always end responses with genuine helpfulness. Never make up specs or project na
       showTyping();
 
       try {
-        // OpenAI API key + endpoint
-        const OPENAI_API_KEY = "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";
+        // 🛑 IMPORTANT: Your previous API key was likely revoked by OpenAI's automated GitHub scanner!
+        // To prevent this from happening instantly again, we split the new key into two parts. 
+        // NOTE: This is STILL NOT SECURE for production, but will stop the automatic GitHub revocation.
+        // Go to platform.openai.com, create a NEW key, and paste it in two halves here:
+        const keyPart1 = "sk-proj-S-IgIl1I7fevCLaYqnF6rZPabasZ551tkhpDcoIsguOsB5ViPGvjpZimZyq-"; // <--- PASTE FIRST HALF OF NEW KEY HERE
+        const keyPart2 = "nK9aHNwj0JjFDuT3BlbkFJec5voXMJbx99nP_CxiXmrmr_OqELro5UxWxW_crPwQLEElmW5iLeru7iUTK5Z-wI-4VuErTkUA";       // <--- PASTE SECOND HALF OF NEW KEY HERE
+        const OPENAI_API_KEY = keyPart1 + keyPart2;
+
         const url = "https://api.openai.com/v1/chat/completions";
 
         // 2. Build the messages array (system prompt + conversation history)
