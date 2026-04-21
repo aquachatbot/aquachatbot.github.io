@@ -9,7 +9,6 @@
     href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
     rel="stylesheet">
 
-  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp }
@@ -523,10 +522,9 @@
 
 <body>
 
-  <!-- Bubbles -->
   <script>
     (function () {
-      const sizes = [8, 12, 18, 10, 22, 14, 9, 16];
+      const sizes =;
       sizes.forEach((s, i) => {
         const b = document.createElement('div');
         b.className = 'bubble';
@@ -540,7 +538,6 @@
 
   <div class="app">
 
-    <!-- Header -->
     <header>
       <div class="mascot-wrap">
         <svg class="mascot-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
@@ -555,18 +552,13 @@
               <stop offset="100%" stop-color="rgba(255,255,255,0)" />
             </radialGradient>
           </defs>
-          <!-- drop body -->
           <path d="M50 8 C50 8 18 50 18 72 A32 32 0 0 0 82 72 C82 50 50 8 50 8Z" fill="url(#dropGrad)" />
-          <!-- shine -->
           <ellipse cx="38" cy="52" rx="10" ry="16" fill="url(#shineGrad)" opacity="0.7" />
-          <!-- eyes -->
           <circle cx="38" cy="68" r="5.5" fill="#003d5c" />
           <circle cx="62" cy="68" r="5.5" fill="#003d5c" />
           <circle cx="40" cy="66" r="2" fill="white" />
           <circle cx="64" cy="66" r="2" fill="white" />
-          <!-- smile -->
           <path d="M38 80 Q50 90 62 80" stroke="#003d5c" stroke-width="3" fill="none" stroke-linecap="round" />
-          <!-- helmet visor line -->
           <path d="M28 55 Q50 46 72 55" stroke="rgba(255,255,255,0.25)" stroke-width="2" fill="none" />
         </svg>
         <div class="status-dot"></div>
@@ -578,10 +570,8 @@
       <div class="header-badge">Live AI</div>
     </header>
 
-    <!-- Chat -->
     <div class="chat-window" id="chatWindow"></div>
 
-    <!-- Quick chips -->
     <div class="chips" id="chips">
       <div class="chip" onclick="sendChip(this)">Our Products</div>
       <div class="chip" onclick="sendChip(this)">Contact Info</div>
@@ -591,7 +581,6 @@
       <div class="chip" onclick="sendChip(this)">Filtration Systems</div>
     </div>
 
-    <!-- Input -->
     <div class="input-bar">
       <textarea id="userInput" placeholder="Ask me anything about Aqua-Aerobic Systems…" rows="1"></textarea>
       <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
@@ -601,7 +590,6 @@
       </button>
     </div>
 
-    <!-- Firebase status -->
     <div class="fb-status" id="fbStatus">⬤ Checking Firebase…</div>
   </div>
 
@@ -773,7 +761,6 @@ Always end responses with genuine helpfulness. Never make up specs or project na
     }, 1200);
 
     // ─── Send message ─────────────────────────────────────────────
-    // ─── Send message ─────────────────────────────────────────────
     async function sendMessage(text) {
       const input = document.getElementById('userInput');
       const btn = document.getElementById('sendBtn');
@@ -827,7 +814,7 @@ Always end responses with genuine helpfulness. Never make up specs or project na
 
         const data = await response.json();
 
-        // 5. Extract the response text
+        // 5. Extract the response text with corrected syntax
         const reply = data.candidates?.?.content?.parts?.?.text || "I'm having a little splash of trouble — please try again!";
 
         removeTyping();
