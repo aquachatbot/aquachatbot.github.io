@@ -773,6 +773,7 @@ Always end responses with genuine helpfulness. Never make up specs or project na
     }, 1200);
 
     // ─── Send message ─────────────────────────────────────────────
+    // ─── Send message ─────────────────────────────────────────────
     async function sendMessage(text) {
       const input = document.getElementById('userInput');
       const btn = document.getElementById('sendBtn');
@@ -783,6 +784,7 @@ Always end responses with genuine helpfulness. Never make up specs or project na
       input.style.height = '24px';
       btn.disabled = true;
 
+      // 1. Add user message to UI and history
       appendMsg('user', userText);
       history.push({ role: 'user', content: userText });
       await window._saveMessage('user', userText);
@@ -790,28 +792,53 @@ Always end responses with genuine helpfulness. Never make up specs or project na
       showTyping();
 
       try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // 🛑 REPLACE WITH YOUR ACTUAL GEMINI API KEY 🛑
+        const GEMINI_API_KEY = "AIzaSyCJi6HyuMiPHslt6W_EF_XnclKtjWPDTiA";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        // 2. Format the history array specifically for Gemini's API format
+        const geminiHistory = history.map(msg => ({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: msg.content }]
+        }));
+
+        // 3. Construct the Gemini payload
+        const payload = {
+          systemInstruction: {
+            parts: [{ text: SYSTEM_PROMPT }]
+          },
+          contents: geminiHistory,
+          generationConfig: {
+            maxOutputTokens: 1000,
+            temperature: 0.7,
+          }
+        };
+
+        // 4. Fetch from Google Gemini API
+        const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            system: SYSTEM_PROMPT,
-            messages: history
-          })
+          body: JSON.stringify(payload)
         });
 
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
-        const reply = data.content?.[0]?.text || "I'm having a little splash of trouble — please try again!";
+
+        // 5. Extract the response text
+        const reply = data.candidates?.?.content?.parts?.?.text || "I'm having a little splash of trouble — please try again!";
 
         removeTyping();
         appendMsg('bot', reply);
         history.push({ role: 'assistant', content: reply });
         await window._saveMessage('assistant', reply);
+
       } catch (err) {
         removeTyping();
         appendMsg('bot', "⚠️ Connection issue. Please check your network and try again.\n\nYou can also reach us directly at **800-940-5008** or **solutions@aqua-aerobic.com**.");
-        console.error(err);
+        console.error("Chat Error:", err);
       }
 
       btn.disabled = false;
