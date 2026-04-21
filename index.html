@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AquaBot — Aqua-Aerobic Systems Assistant</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'><path d='M50 8C50 8 18 50 18 72A32 32 0 0082 72C82 50 50 8 50 8Z' fill='%2300c2e0'/></svg>">
   <link
     href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
     rel="stylesheet">
@@ -524,7 +526,7 @@
 
   <script>
     (function () {
-      const sizes =;
+      const sizes = [12, 18, 24, 14, 30, 20, 16, 26, 10, 22];
       sizes.forEach((s, i) => {
         const b = document.createElement('div');
         b.className = 'bubble';
@@ -815,7 +817,7 @@ Always end responses with genuine helpfulness. Never make up specs or project na
         const data = await response.json();
 
         // 5. Extract the response text with corrected syntax
-        const reply = data.candidates?.?.content?.parts?.?.text || "I'm having a little splash of trouble — please try again!";
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a little splash of trouble — please try again!";
 
         removeTyping();
         appendMsg('bot', reply);
