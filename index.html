@@ -847,12 +847,12 @@ Always end responses with genuine helpfulness. Never make up specs or project na
         removeTyping();
         const isRateLimit = err.message.includes('Rate limit') || err.message.includes('429');
         const errMsg = isRateLimit
-          ? "⏳ I'm getting too many requests right now — please wait a few seconds and try again!
+          ? `⏳ I'm getting too many requests right now — please wait a few seconds and try again!
 
-If it keeps happening, reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **."
-          : "⚠️ Connection issue. Please check your network and try again.
+If it keeps happening, reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **.`
+          : `⚠️ Connection issue. Please check your network and try again.
 
-You can also reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **.";
+You can also reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **.`;
         appendMsg('bot', errMsg);
         console.error("Chat Error:", err);
       }
