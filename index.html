@@ -781,43 +781,62 @@ Always end responses with genuine helpfulness. Never make up specs or project na
       showTyping();
 
       try {
-        // 🛑 REPLACE WITH YOUR ACTUAL GEMINI API KEY 🛑
-        const GEMINI_API_KEY = "AIzaSyCJi6HyuMiPHslt6W_EF_XnclKtjWPDTiA";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // OpenAI API key + endpoint
+        const OPENAI_API_KEY = "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";
+        const url = "https://api.openai.com/v1/chat/completions";
 
-        // 2. Format the history array specifically for Gemini's API format
-        const geminiHistory = history.map(msg => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }]
-        }));
+        // 2. Build the messages array (system prompt + conversation history)
+        const messages = [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...history
+        ];
 
-        // 3. Construct the Gemini payload
+        // 3. Construct the OpenAI payload
         const payload = {
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
-          },
-          contents: geminiHistory,
-          generationConfig: {
-            maxOutputTokens: 1000,
-            temperature: 0.7,
-          }
+          model: "gpt-4o-mini",
+          messages: messages,
+          max_tokens: 1000,
+          temperature: 0.7,
         };
 
-        // 4. Fetch from Google Gemini API
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        // 4. Fetch from OpenAI API (with exponential backoff for 429s)
+        const MAX_RETRIES = 4;
+        const RETRY_BASE_MS = 2000;
+        let data, lastStatus;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify(payload)
+          });
+          lastStatus = response.status;
+
+          if (response.status === 429) {
+            if (attempt === MAX_RETRIES) break;
+            const waitMs = RETRY_BASE_MS * Math.pow(2, attempt) + Math.random() * 500;
+            console.warn(`Rate limited (429). Retrying in ${Math.round(waitMs / 1000)}s… (attempt ${attempt + 1}/${MAX_RETRIES})`);
+            await new Promise(r => setTimeout(r, waitMs));
+            continue;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          data = await response.json();
+          break;
         }
 
-        const data = await response.json();
+        if (!data) {
+          throw new Error(`Rate limit exceeded after ${MAX_RETRIES} retries. Please wait a moment and try again.`);
+        }
 
-        // 5. Extract the response text with corrected syntax
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a little splash of trouble — please try again!";
+        // 5. Extract the reply from OpenAI response
+        const reply = data.choices?.[0]?.message?.content || "I'm having a little splash of trouble — please try again!";
 
         removeTyping();
         appendMsg('bot', reply);
@@ -826,7 +845,15 @@ Always end responses with genuine helpfulness. Never make up specs or project na
 
       } catch (err) {
         removeTyping();
-        appendMsg('bot', "⚠️ Connection issue. Please check your network and try again.\n\nYou can also reach us directly at **800-940-5008** or **solutions@aqua-aerobic.com**.");
+        const isRateLimit = err.message.includes('Rate limit') || err.message.includes('429');
+        const errMsg = isRateLimit
+          ? "⏳ I'm getting too many requests right now — please wait a few seconds and try again!
+
+If it keeps happening, reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **."
+          : "⚠️ Connection issue. Please check your network and try again.
+
+You can also reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **.";
+        appendMsg('bot', errMsg);
         console.error("Chat Error:", err);
       }
 
