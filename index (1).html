@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaBot — Aqua-Aerobic Systems Assistant</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'><path d='M50 8C50 8 18 50 18 72A32 32 0 0082 72C82 50 50 8 50 8Z' fill='%2300c2e0'/></svg>">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ─────────────────────────────────────────────────────────────
+    //  🔧 REPLACE with your Firebase project config
+    // ─────────────────────────────────────────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyAw6d2-p3OpjLSJ0oLppkKqUNrQ3C_Yf9Q",
+      authDomain: "aquachatbot-b7168.firebaseapp.com",
+      projectId: "aquachatbot-b7168",
+      storageBucket: "aquachatbot-b7168.firebasestorage.app",
+      messagingSenderId: "556947541441",
+      appId: "1:556947541441:web:1b3abb80f67217e14cb340",
+      measurementId: "G-83NQJ47H62"
+    };
+    // ─────────────────────────────────────────────────────────────
+
+    let db = null;
+    const SESSION_ID = "session_" + Date.now();
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      console.log("✅ Firebase connected");
+      window._firebaseReady = true;
+      window._saveMessage = async (role, content) => {
+        try {
+          await addDoc(collection(db, "chat_sessions", SESSION_ID, "messages"), {
+            role, content, timestamp: serverTimestamp()
+          });
+        } catch (e) { console.warn("Firebase save failed:", e.message); }
+      };
+      window._loadHistory = async () => {
+        try {
+          const q = query(
+            collection(db, "chat_sessions", SESSION_ID, "messages"),
+            orderBy("timestamp", "asc")
+          );
+          const snap = await getDocs(q);
+          return snap.docs.map(d => ({ role: d.data().role, content: d.data().content }));
+        } catch (e) { return []; }
+      };
+    } catch (e) {
+      console.warn("Firebase not configured — running without persistence.");
+      window._firebaseReady = false;
+      window._saveMessage = async () => { };
+      window._loadHistory = async () => [];
+    }
+  </script>
+
+  <style>
+    :root {
+      --navy: #0a1628;
+      --deep: #0d2240;
+      --mid: #0e3a5c;
+      --teal: #0b7fa8;
+      --cyan: #00c2e0;
+      --aqua: #4de8ff;
+      --foam: #c8f7ff;
+      --white: #f0faff;
+      --glass: rgba(11, 127, 168, 0.15);
+      --border: rgba(77, 232, 255, 0.2);
+      --shadow: 0 8px 32px rgba(0, 194, 224, 0.12);
+      --font-hd: 'Rajdhani', sans-serif;
+      --font-bd: 'DM Sans', sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--navy);
+      font-family: var(--font-bd);
+      color: var(--white);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ─── animated water background ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 80%, rgba(11, 127, 168, 0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 20%, rgba(0, 194, 224, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse 100% 80% at 50% 110%, rgba(13, 58, 92, 0.9) 0%, transparent 70%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* floating bubbles */
+    .bubble {
+      position: fixed;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, rgba(77, 232, 255, 0.4), rgba(0, 194, 224, 0.08));
+      border: 1px solid rgba(77, 232, 255, 0.15);
+      animation: rise linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes rise {
+      0% {
+        transform: translateY(110vh) scale(1);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      90% {
+        opacity: 0.6;
+      }
+
+      100% {
+        transform: translateY(-10vh) scale(1.1);
+        opacity: 0;
+      }
+    }
+
+    /* ─── layout ─── */
+    .app {
+      position: relative;
+      z-index: 1;
+      width: min(760px, 100vw);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 12px;
+    }
+
+    /* ─── header ─── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 20px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      backdrop-filter: blur(16px);
+      flex-shrink: 0;
+    }
+
+    .mascot-wrap {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+    }
+
+    .mascot-svg {
+      width: 56px;
+      height: 56px;
+      filter: drop-shadow(0 0 10px rgba(77, 232, 255, 0.6));
+      animation: bob 3s ease-in-out infinite;
+    }
+
+    @keyframes bob {
+
+      0%,
+      100% {
+        transform: translateY(0) rotate(-2deg);
+      }
+
+      50% {
+        transform: translateY(-5px) rotate(2deg);
+      }
+    }
+
+    .status-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 12px;
+      height: 12px;
+      background: #00e676;
+      border-radius: 50%;
+      border: 2px solid var(--navy);
+      animation: pulse-dot 2s ease infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.5);
+      }
+
+      50% {
+        box-shadow: 0 0 0 5px rgba(0, 230, 118, 0);
+      }
+    }
+
+    .header-text {
+      flex: 1;
+    }
+
+    .header-text h1 {
+      font-family: var(--font-hd);
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--aqua);
+      line-height: 1;
+    }
+
+    .header-text p {
+      font-size: 0.72rem;
+      color: rgba(200, 247, 255, 0.6);
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .header-badge {
+      background: rgba(0, 194, 224, 0.12);
+      border: 1px solid rgba(0, 194, 224, 0.3);
+      color: var(--cyan);
+      font-family: var(--font-hd);
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* ─── chat window ─── */
+    .chat-window {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--teal) transparent;
+    }
+
+    .chat-window::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .chat-window::-webkit-scrollbar-thumb {
+      background: var(--teal);
+      border-radius: 4px;
+    }
+
+    /* ─── messages ─── */
+    .msg {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      animation: fadeUp 0.3s ease both;
+      max-width: 88%;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .msg.bot {
+      align-self: flex-start;
+    }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      background: linear-gradient(135deg, var(--teal), var(--cyan));
+      border: 1px solid rgba(77, 232, 255, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 194, 224, 0.3);
+    }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      position: relative;
+      max-width: 100%;
+    }
+
+    .msg.bot .msg-bubble {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      border-bottom-left-radius: 4px;
+      color: var(--foam);
+    }
+
+    .msg.user .msg-bubble {
+      background: linear-gradient(135deg, var(--teal), #0b6a8a);
+      border: 1px solid rgba(77, 232, 255, 0.25);
+      border-bottom-right-radius: 4px;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(11, 127, 168, 0.3);
+    }
+
+    /* typing indicator */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 16px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+    }
+
+    .typing-indicator span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      animation: blink 1.2s ease infinite;
+    }
+
+    .typing-indicator span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes blink {
+
+      0%,
+      80%,
+      100% {
+        opacity: 0.3;
+        transform: scale(0.85);
+      }
+
+      40% {
+        opacity: 1;
+        transform: scale(1.15);
+      }
+    }
+
+    /* ─── quick chips ─── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+
+    .chip {
+      padding: 6px 14px;
+      background: rgba(11, 127, 168, 0.18);
+      border: 1px solid rgba(0, 194, 224, 0.3);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: var(--cyan);
+      cursor: pointer;
+      transition: all .2s;
+      font-family: var(--font-hd);
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      background: rgba(0, 194, 224, 0.25);
+      border-color: var(--cyan);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 194, 224, 0.2);
+    }
+
+    /* ─── input bar ─── */
+    .input-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      backdrop-filter: blur(16px);
+      flex-shrink: 0;
+    }
+
+    .input-bar textarea {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--white);
+      font-family: var(--font-bd);
+      font-size: 0.88rem;
+      resize: none;
+      line-height: 1.4;
+      max-height: 90px;
+      min-height: 24px;
+      height: 24px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .input-bar textarea::placeholder {
+      color: rgba(200, 247, 255, 0.35);
+    }
+
+    .send-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      color: var(--navy);
+      font-size: 1rem;
+      transition: all .2s;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 194, 224, 0.35);
+    }
+
+    .send-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 18px rgba(0, 194, 224, 0.5);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+      transform: none;
+    }
+
+    /* ─── firebase badge ─── */
+    .fb-status {
+      text-align: center;
+      font-size: 0.65rem;
+      color: rgba(200, 247, 255, 0.35);
+      letter-spacing: 0.5px;
+      padding-bottom: 2px;
+      flex-shrink: 0;
+    }
+
+    .fb-status.on {
+      color: rgba(0, 230, 118, 0.5);
+    }
+
+    .fb-status.off {
+      color: rgba(255, 167, 38, 0.5);
+    }
+
+    /* markdown-like within bubbles */
+    .msg-bubble strong {
+      color: var(--aqua);
+      font-weight: 600;
+    }
+
+    .msg-bubble em {
+      color: var(--foam);
+    }
+
+    .msg-bubble a {
+      color: var(--cyan);
+      text-decoration: underline;
+    }
+
+    .msg-bubble ul,
+    .msg-bubble ol {
+      padding-left: 18px;
+      margin: 6px 0;
+    }
+
+    .msg-bubble li {
+      margin: 2px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <script>
+    (function () {
+      const sizes = [12, 18, 24, 14, 30, 20, 16, 26, 10, 22];
+      sizes.forEach((s, i) => {
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.style.cssText = `width:${s}px;height:${s}px;left:${Math.random() * 95}%;
+        animation-duration:${10 + Math.random() * 14}s;
+        animation-delay:${-Math.random() * 12}s;`;
+        document.body.appendChild(b);
+      });
+    })();
+  </script>
+
+  <div class="app">
+
+    <header>
+      <div class="mascot-wrap">
+        <svg class="mascot-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="dropGrad" cx="40%" cy="35%" r="55%">
+              <stop offset="0%" stop-color="#6ef8ff" />
+              <stop offset="50%" stop-color="#00c2e0" />
+              <stop offset="100%" stop-color="#0b7fa8" />
+            </radialGradient>
+            <radialGradient id="shineGrad" cx="30%" cy="25%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.65)" />
+              <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+            </radialGradient>
+          </defs>
+          <path d="M50 8 C50 8 18 50 18 72 A32 32 0 0 0 82 72 C82 50 50 8 50 8Z" fill="url(#dropGrad)" />
+          <ellipse cx="38" cy="52" rx="10" ry="16" fill="url(#shineGrad)" opacity="0.7" />
+          <circle cx="38" cy="68" r="5.5" fill="#003d5c" />
+          <circle cx="62" cy="68" r="5.5" fill="#003d5c" />
+          <circle cx="40" cy="66" r="2" fill="white" />
+          <circle cx="64" cy="66" r="2" fill="white" />
+          <path d="M38 80 Q50 90 62 80" stroke="#003d5c" stroke-width="3" fill="none" stroke-linecap="round" />
+          <path d="M28 55 Q50 46 72 55" stroke="rgba(255,255,255,0.25)" stroke-width="2" fill="none" />
+        </svg>
+        <div class="status-dot"></div>
+      </div>
+      <div class="header-text">
+        <h1>AQUABOT</h1>
+        <p>Aqua-Aerobic Systems, Inc. · Loves Park, IL</p>
+      </div>
+      <div class="header-badge">Live AI</div>
+    </header>
+
+    <div class="chat-window" id="chatWindow"></div>
+
+    <div class="chips" id="chips">
+      <div class="chip" onclick="sendChip(this)">Our Products</div>
+      <div class="chip" onclick="sendChip(this)">Contact Info</div>
+      <div class="chip" onclick="sendChip(this)">Company History</div>
+      <div class="chip" onclick="sendChip(this)">PFAS Solutions</div>
+      <div class="chip" onclick="sendChip(this)">Aftermarket Services</div>
+      <div class="chip" onclick="sendChip(this)">Filtration Systems</div>
+    </div>
+
+    <div class="input-bar">
+      <textarea id="userInput" placeholder="Ask me anything about Aqua-Aerobic Systems…" rows="1"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="fb-status" id="fbStatus">⬤ Checking Firebase…</div>
+  </div>
+
+  <script>
+    // ─── Conversation state ───────────────────────────────────────
+    const history = [];
+
+    const SYSTEM_PROMPT = `You are AquaBot, the friendly and knowledgeable virtual assistant for Aqua-Aerobic Systems, Inc.
+You speak in a warm, professional tone with occasional water-themed personality.
+Answer ALL questions about the company with confidence and detail.
+
+== COMPANY OVERVIEW ==
+- Full name: Aqua-Aerobic Systems, Inc.
+- Address: 6306 North Alpine Road, Loves Park, IL 61111, USA
+- Phone: 815-654-2501 | Toll-Free: 800-940-5008
+- Fax: 815-654-2508
+- Email: solutions@aqua-aerobic.com
+- Website: https://aqua-aerobic.com
+- Founded: 1969 (as manufacturer of Aqua-Jet® Surface Aerators)
+- Parent company: Metawater Co., Ltd. (acquired January 18, 2016)
+- Employees: ~160-191 staff
+- Revenue: ~$40.6 million (2025 estimate)
+- Type: Private (Partnership/subsidiary of Metawater)
+- Headquarters: Loves Park, Illinois (near Rockford)
+
+== MISSION & PHILOSOPHY ==
+"Protecting the World's Water" — Aqua-Aerobic is an applied engineering company specializing in adaptive water management solutions.
+"Customer for Life" philosophy: every customer receives unparalleled service before, during, and after installation.
+They work collaboratively with consulting engineers, owners, plant managers, and operators to design and manufacture the best treatment solution with the lowest lifecycle cost.
+
+== MARKETS SERVED ==
+- Municipal: small/medium municipalities to large metro areas worldwide
+- Industrial: petroleum, textile, beverage, pharmaceutical, energy
+- Both domestic and industrial waste streams
+- Customers in North America, Europe, and Asia
+
+== PRODUCT LINES ==
+
+1. AERATION & MIXING
+   - Aqua-Jet® Surface Aerators — vibration-controlled design, superior O₂ transfer; SS-PW model UL-approved for TTHM stripping in potable water
+   - AquaDDM® Direct-Drive Mixers — maximum mixing efficiency, reduced power costs
+   - Fine & Coarse Bubble Diffused Aeration Systems
+   - Spray Coolers
+
+2. BIOLOGICAL PROCESSES
+   - AquaSBR® Sequencing Batch Reactor (SBR) — time-based rather than space-based treatment
+   - AquaPASS® Phased Activated Sludge System — biological nutrient removal with reduced internal recycles; differences vs. traditional flow-through systems presented in TechTalk webinars
+   - AquaExcel® biological process systems
+   - AquaNereda® Aerobic Granular Sludge System — innovative technology using aerobic granular biomass; compact, energy-efficient, lower chemical consumption
+
+3. FILTRATION
+   - AquaDiamond® Cloth Media Filter — winner of 2008 WEF Innovative Technology Award
+   - AquaPrime cloth media filtration system — disk configuration, OptiFiber PF-14® pile cloth media, filters high-solids waste streams without chemicals
+   - Traveling Bridge Sand Filters
+   - Cloth Sand Media Filters
+
+4. MEMBRANE SYSTEMS
+   - Membrane bioreactor and filtration systems for advanced water reuse
+   - Suitable for both municipal and industrial applications
+
+5. PFAS SOLUTIONS
+   - Dedicated solutions for PFAS (per- and polyfluoroalkyl substances) removal from water and wastewater
+   - Critical emerging contaminant treatment
+
+6. DISINFECTION & OXIDATION
+   - Ozone treatment systems — proven for decades, viable for municipal and industrial plants worldwide
+   - UV disinfection systems
+   - Advanced oxidation processes
+
+7. PROCESS CONTROLS & MONITORING
+   - IntelliPro® Process Monitoring and Control System — winner of 2011 WEF Innovative Technology Award
+   - Control Panels and Process Management Systems
+   - SCADA integration
+
+8. AFTERMARKET PRODUCTS & SERVICES
+   - Spare parts and replacement equipment for the full lifespan of the plant
+   - Installation and startup support
+   - Maintenance and repair services
+   - On-site training programs and seminars
+   - Technical support team
+
+== KEY AWARDS & RECOGNITION ==
+- 2011: WEF Innovative Technology Award — IntelliPro® Process Monitoring and Control System
+- 2008: WEF Innovative Technology Award — AquaDiamond® Cloth Media Filter
+- 2008: Rockford Chamber of Commerce Manufacturer of the Year
+- 2006: Partner of the Year, Businesses for the Bay (Chesapeake Bay Initiative)
+- 2002: Illinois Governor's Export Award
+
+== NOTABLE PEOPLE ==
+- Kevin Heasley — Vice President of Operations
+- Terry Reid, P.E. — Vice President, Research & Development (promoted, 35-year career; innovation leader)
+- Paul Klebs — Director of Aftermarket Sales (with company since 1996; Process Engineer background; SBR expert)
+
+== TECHNOLOGY NOTES ==
+- Aerobic Granular Sludge (AquaNereda): uses selective pressure to cultivate dense granular biomass; no secondary clarifiers needed; smaller footprint
+- AquaPASS vs. traditional flow-through: AquaPASS uses phased approach to achieve biological nutrient removal (BNR) with reduced internal recycles and lower energy
+- AquaSBR uses time-sequenced fill/react/settle/decant cycles in a single basin
+- Cloth media filtration uses pile fiber cloth rather than sand; lower backwash water use
+
+If you don't know a very specific detail, be transparent but offer to connect the user with the team at solutions@aqua-aerobic.com or 800-940-5008.
+Always end responses with genuine helpfulness. Never make up specs or project names you're unsure of.`;
+
+    // ─── Render helpers ───────────────────────────────────────────
+    function renderMarkdown(text) {
+      return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code style="background:rgba(0,194,224,0.15);padding:1px 5px;border-radius:4px;font-size:0.82em">$1</code>')
+        .replace(/^### (.+)$/gm, '<strong style="color:var(--aqua);font-size:0.95em">$1</strong>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, s => `<ul>${s}</ul>`)
+        .replace(/\n{2,}/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/^(.+)$/, '<p>$1</p>');
+    }
+
+    function appendMsg(role, text, animate = true) {
+      const win = document.getElementById('chatWindow');
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${role}`;
+      if (!animate) wrap.style.animation = 'none';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.innerHTML = role === 'user'
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v2h20v-2c0-3.3-6.7-5-10-5z"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 100 120" fill="#003d5c"><path d="M50 8C50 8 18 50 18 72A32 32 0 0082 72C82 50 50 8 50 8Z" fill="#00c2e0"/></svg>';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.innerHTML = renderMarkdown(text);
+
+      wrap.appendChild(avatar);
+      wrap.appendChild(bubble);
+      win.appendChild(wrap);
+      win.scrollTop = win.scrollHeight;
+      return wrap;
+    }
+
+    function showTyping() {
+      const win = document.getElementById('chatWindow');
+      const wrap = document.createElement('div');
+      wrap.className = 'msg bot';
+      wrap.id = 'typingMsg';
+      wrap.innerHTML = `
+    <div class="msg-avatar">
+      <svg width="14" height="14" viewBox="0 0 100 120"><path d="M50 8C50 8 18 50 18 72A32 32 0 0082 72C82 50 50 8 50 8Z" fill="#00c2e0"/></svg>
+    </div>
+    <div class="typing-indicator"><span></span><span></span><span></span></div>`;
+      win.appendChild(wrap);
+      win.scrollTop = win.scrollHeight;
+    }
+
+    function removeTyping() {
+      const el = document.getElementById('typingMsg');
+      if (el) el.remove();
+    }
+
+    // ─── Firebase status ──────────────────────────────────────────
+    setTimeout(() => {
+      const el = document.getElementById('fbStatus');
+      if (window._firebaseReady) {
+        el.className = 'fb-status on';
+        el.textContent = '⬤ Firebase connected — chat history is saved';
+      } else {
+        el.className = 'fb-status off';
+        el.textContent = '⬤ Firebase not configured — running in-memory only';
+      }
+    }, 1200);
+
+    // ─── Send message ─────────────────────────────────────────────
+    async function sendMessage(text) {
+      const input = document.getElementById('userInput');
+      const btn = document.getElementById('sendBtn');
+      const userText = (text || input.value).trim();
+      if (!userText) return;
+
+      input.value = '';
+      input.style.height = '24px';
+      btn.disabled = true;
+
+      // 1. Add user message to UI and history
+      appendMsg('user', userText);
+      history.push({ role: 'user', content: userText });
+      await window._saveMessage('user', userText);
+
+      showTyping();
+
+      try {
+        // ✅ API key lives in the Netlify Function — not here. Safe from GitHub scanners.
+        // This calls /.netlify/functions/chat which proxies to OpenAI server-side.
+        const url = "/.netlify/functions/chat";
+
+        // 2. Build the messages array (system prompt + conversation history)
+        const messages = [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...history
+        ];
+
+        // 3. Construct the OpenAI payload
+        const payload = {
+          model: "gpt-4o-mini",
+          messages: messages,
+          max_tokens: 1000,
+          temperature: 0.7,
+        };
+
+        // 4. Fetch from OpenAI API (with exponential backoff for 429s)
+        const MAX_RETRIES = 4;
+        const RETRY_BASE_MS = 2000;
+        let data, lastStatus;
+
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          lastStatus = response.status;
+
+          if (response.status === 429) {
+            if (attempt === MAX_RETRIES) break;
+            const waitMs = RETRY_BASE_MS * Math.pow(2, attempt) + Math.random() * 500;
+            console.warn(`Rate limited (429). Retrying in ${Math.round(waitMs / 1000)}s… (attempt ${attempt + 1}/${MAX_RETRIES})`);
+            await new Promise(r => setTimeout(r, waitMs));
+            continue;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          data = await response.json();
+          break;
+        }
+
+        if (!data) {
+          throw new Error(`Rate limit exceeded after ${MAX_RETRIES} retries. Please wait a moment and try again.`);
+        }
+
+        // 5. Extract the reply from OpenAI response
+        const reply = data.choices?.[0]?.message?.content || "I'm having a little splash of trouble — please try again!";
+
+        removeTyping();
+        appendMsg('bot', reply);
+        history.push({ role: 'assistant', content: reply });
+        await window._saveMessage('assistant', reply);
+
+      } catch (err) {
+        removeTyping();
+        const isRateLimit = err.message.includes('Rate limit') || err.message.includes('429');
+        const errMsg = isRateLimit
+          ? `⏳ I'm getting too many requests right now — please wait a few seconds and try again!
+
+If it keeps happening, reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **.`
+          : `⚠️ Connection issue. Please check your network and try again.
+
+You can also reach us directly at ** 800 - 940 - 5008 ** or ** solutions@aqua-aerobic.com **.`;
+        appendMsg('bot', errMsg);
+        console.error("Chat Error:", err);
+      }
+
+      btn.disabled = false;
+      input.focus();
+    }
+
+    function sendChip(el) {
+      sendMessage(el.textContent);
+    }
+
+    // ─── Input auto-resize + Enter to send ───────────────────────
+    const ta = document.getElementById('userInput');
+    ta.addEventListener('input', () => {
+      ta.style.height = '24px';
+      ta.style.height = Math.min(ta.scrollHeight, 90) + 'px';
+    });
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    // ─── Welcome message ──────────────────────────────────────────
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        appendMsg('bot',
+          "👋 Hi there! I'm **AquaBot**, your virtual guide to **Aqua-Aerobic Systems, Inc.**\n\n" +
+          "Since 1969 we've been protecting the world's water with advanced aeration, filtration, biological processes, PFAS solutions, and more — serving municipalities and industries across the globe from our home in **Loves Park, IL**.\n\n" +
+          "Ask me anything! Or tap a quick topic below. 💧"
+        );
+      }, 400);
+    });
+  </script>
+</body>
+
+</html>
